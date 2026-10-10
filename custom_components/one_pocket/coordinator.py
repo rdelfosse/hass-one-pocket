@@ -22,17 +22,33 @@ def _normalize(text: str) -> str:
     return "".join(c for c in text if c.isalnum()).lower()
 
 
+_FILLER_WORDS = {"annee", "de", "des", "du", "la", "le", "les", "classe"}
+
+
 def _class_keys(class_name: str) -> list[str]:
     """Ways a class may be written in a diary name.
 
-    "Cours préparatoire B" is usually abbreviated "CPB" / "CP B" in diary
-    titles, "Cours moyen 2 C" becomes "CM2C": try the full name and the
-    acronym made of the initials of long words plus the short tokens.
+    "Cours préparatoire B" is usually abbreviated "CPb" in diary titles and
+    "Cours moyen 2ème année C" becomes "CM2C": try the full name and the
+    acronym made of the initials of the long words, the digits of numbered
+    words and the short tokens, ignoring filler words such as "année".
     """
     keys = [_normalize(class_name)]
-    words = class_name.replace("-", " ").split()
-    acronym = "".join(w[0] if len(w) >= 3 else w for w in words)
-    acronym = _normalize(acronym)
+    parts: list[str] = []
+    for word in class_name.replace("-", " ").split():
+        norm = _normalize(word)
+        if not norm:
+            continue
+        if norm[0].isdigit():
+            # "2ème année" -> "2"
+            parts.append("".join(ch for ch in norm if ch.isdigit()))
+        elif norm in _FILLER_WORDS:
+            continue
+        elif len(norm) <= 2:
+            parts.append(norm)
+        else:
+            parts.append(norm[0])
+    acronym = "".join(parts)
     if len(acronym) >= 3 and acronym not in keys:
         keys.append(acronym)
     return [k for k in keys if k]
