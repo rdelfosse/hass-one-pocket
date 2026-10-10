@@ -139,14 +139,6 @@ class OnePocketCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     self._diary_ids = [d["id"] for d in selected]
                 data["diaries"] = self._diaries
                 data["class_names"] = self._class_names
-                # DIAGNOSTIC TEMPORAIRE
-                try:
-                    raw = await self.client._request("GET", f"/directory/user/{self._child_id}")
-                    keys = sorted(raw.keys()) if isinstance(raw, dict) else type(raw).__name__
-                    person = await self.client._request("GET", f"/userbook/api/person?id={self._child_id}")
-                    data["class_debug"] = {"child_id": self._child_id, "directory_keys": keys, "directory_classes": raw.get("classes") if isinstance(raw, dict) else None, "directory_classNames": raw.get("classNames") if isinstance(raw, dict) else None, "person": str(person)[:1200]}
-                except Exception as err:  # noqa: BLE001
-                    data["class_debug"] = {"child_id": self._child_id, "error": str(err)[:300]}
 
                 all_hw = []
                 names = {d["id"]: d["name"] for d in self._diaries}
