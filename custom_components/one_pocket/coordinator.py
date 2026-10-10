@@ -22,10 +22,26 @@ def _normalize(text: str) -> str:
     return "".join(c for c in text if c.isalnum()).lower()
 
 
+def _class_keys(class_name: str) -> list[str]:
+    """Ways a class may be written in a diary name.
+
+    "Cours préparatoire B" is usually abbreviated "CPB" / "CP B" in diary
+    titles, "Cours moyen 2 C" becomes "CM2C": try the full name and the
+    acronym made of the initials of long words plus the short tokens.
+    """
+    keys = [_normalize(class_name)]
+    words = class_name.replace("-", " ").split()
+    acronym = "".join(w[0] if len(w) >= 3 else w for w in words)
+    acronym = _normalize(acronym)
+    if len(acronym) >= 3 and acronym not in keys:
+        keys.append(acronym)
+    return [k for k in keys if k]
+
+
 def diary_matches_classes(diary_name: str, class_names: list[str]) -> bool:
     """True when the diary name mentions one of the child's classes."""
     name = _normalize(diary_name)
-    return any(_normalize(c) and _normalize(c) in name for c in class_names)
+    return any(key in name for c in class_names for key in _class_keys(c))
 
 
 class OnePocketCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -123,6 +139,14 @@ class OnePocketCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     self._diary_ids = [d["id"] for d in selected]
                 data["diaries"] = self._diaries
                 data["class_names"] = self._class_names
+                # DIAGNOSTIC TEMPORAIRE
+                try:
+                    raw = await self.client._request("GET", f"/directory/user/{self._child_id}")
+                    keys = sorted(raw.keys()) if isinstance(raw, dict) else type(raw).__name__
+                    person = await self.client._request("GET", f"/userbook/api/person?id={self._child_id}")
+                    data["class_debug"] = {"child_id": self._child_id, "directory_keys": keys, "directory_classes": raw.get("classes") if isinstance(raw, dict) else None, "directory_classNames": raw.get("classNames") if isinstance(raw, dict) else None, "person": str(person)[:1200]}
+                except Exception as err:  # noqa: BLE001
+                    data["class_debug"] = {"child_id": self._child_id, "error": str(err)[:300]}
 
                 all_hw = []
                 names = {d["id"]: d["name"] for d in self._diaries}
