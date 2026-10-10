@@ -299,10 +299,19 @@ class OnePocketClient:
         return entries
 
     async def get_user_classes(self, user_id: str) -> list[str]:
-        """Return the class names of a user (e.g. a child) from the directory."""
-        result = await self._request("GET", f"/directory/user/{user_id}")
-        names = result.get("classNames") or []
-        return [str(name) for name in names if name]
+        """Return the class names of a user (e.g. a child), such as "CM2 C".
+
+        /directory/user only gives class ids; the userbook "person" card
+        gives the names, per school.
+        """
+        result = await self._request("GET", f"/userbook/api/person?id={user_id}")
+        names: list[str] = []
+        for person in result.get("result", []) or []:
+            for school in person.get("schools", []) or []:
+                for name in school.get("classes", []) or []:
+                    if name and name not in names:
+                        names.append(str(name))
+        return names
 
     async def get_homework_diaries(self) -> list[dict]:
         """Get list of homework diaries."""
